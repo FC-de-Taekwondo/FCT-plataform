@@ -5,16 +5,17 @@
 header input{padding:5px}nav{display:flex;gap:4px;flex-wrap:wrap;padding:8px 16px;border-bottom:1px solid #8885}nav button{border:0;padding:6px 10px;border-radius:6px;cursor:pointer}nav .on{background:var(--a);color:#fff}
 main{padding:16px;max-width:1200px;margin:auto}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #8885;padding:5px 8px;text-align:left}.w{overflow-x:auto}form{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;padding:10px;border:1px solid #8885;border-radius:8px}label{display:flex;flex-direction:column;font-size:12px}input,select,button{font:inherit}h3{margin:16px 0 4px}.hero{background:linear-gradient(135deg,var(--a),#1a1a40);color:#fff;border-radius:12px;padding:24px;margin-bottom:8px}.hero h2{margin:0 0 6px}.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}.cd{border:1px solid #8885;border-radius:10px;padding:12px;cursor:pointer}.cd:hover{border-color:var(--a)}.br{display:flex;gap:16px;overflow-x:auto;padding-bottom:8px}.col{display:flex;flex-direction:column;justify-content:space-around;gap:10px;min-width:240px}.m{border:1px solid #8885;border-radius:8px;padding:6px}.m input[type=number]{width:52px}.w1{font-weight:700;color:var(--a)}</style></head><body>
 <header><h1>🥋 Federação Cabo-Verdiana de Taekwondo</h1><span id="who"></span><span id="lg"><input id="em" placeholder="email"><input id="pw" type="password" placeholder="senha"><button onclick="login()">Entrar</button></span><button id="lo" hidden onclick="db.auth.signOut()">Sair</button></header>
-<nav id="nav"></nav><main id="app">A carregar…</main>
+<nav id="nav"></nav><nav id="sub" hidden></nav><main id="app">A carregar…</main>
 <script>
 const _m=m=>{document.getElementById('app').innerHTML='<p style="color:#c8102e"><b>⚠ '+m+'</b></p>'};
 addEventListener('error',e=>{if(!/cfg/.test(e.message))_m('Erro: '+e.message)});addEventListener('unhandledrejection',e=>_m('Erro: '+(e.reason?.message||e.reason)));
 const SB_URL='https://ovvmanlogsydcwbkkyuf.supabase.co',SB_KEY='sb_publishable_iVaCCEP130eP0-RabsWC_w__IH0496H';
 if(typeof supabase=='undefined'){_m('Não foi possível carregar a biblioteca Supabase (verifique a internet ou bloqueios).');throw 'cfg'}
 if(SB_URL.startsWith('COLE_AQUI')||SB_KEY.startsWith('COLE_AQUI')){_m('Falta configurar o URL e a chave do Supabase no início do script do index.html (Passo 3 do LEIA-ME).');throw 'cfg'}
-const db=supabase.createClient(SB_URL,SB_KEY),$=s=>document.querySelector(s);
-let P=null,tab='inicio',O={},ED=null,AID=null;
-const REF={associacao_id:'ASSOCIAÇÕES',clube_id:'clubes',atleta_id:'atletas_v',competicao_id:'competicoes',admin_id:'perfis'};
+const SB=(u=>{try{const x=new URL(u.trim()),m=x.pathname.match(/\/project\/([a-z0-9]+)/);return/supabase\.com$/.test(x.hostname)&&m?`https://${m[1]}.supabase.co`:x.origin}catch(e){return u}})(SB_URL);
+const db=supabase.createClient(SB,SB_KEY.trim()),$=s=>document.querySelector(s);
+let P=null,tab='inicio',O={},ED=null,AID=null,mn='inicio',SC=null,GN='';
+const REF={associacao_id:'associacoes',clube_id:'clubes',atleta_id:'atletas_v',competicao_id:'competicoes',admin_id:'perfis'};
 const SEL={tipo:['nacional','regional','internacional'],sexo:['M','F'],medalha:['','ouro','prata','bronze'],funcao:['Selecionador','Árbitro','Treinador','Preparador físico','Médico','Psicólogo','Fisioterapeuta','Outro']};
 const BOOL=['pesagem_ok','visitante','utilizador'],SENS=['nif','nib','cni'];
 const T={associacoes:{t:'Associações',f:['nome','nif','nib','morada','contacto','representante']},
@@ -28,34 +29,48 @@ nomeacoes:{t:'Seleção',f:['atleta_id','competicao_id']},
 documentos:{t:'Documentos',f:['associacao_id','titulo','url']},
 permissoes:{t:'Permissões admin',m:1,f:['admin_id','tabela']},visibilidade:{t:'Visibilidade',m:1,f:['tabela','visitante','utilizador']},categorias:{t:'Categorias WT',f:['escalao','sexo','nome','peso_max']}};
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const MENU=[['inicio','Início',null],['fct','DADOS da FCT',[['orgaos_sociais','Órgãos sociais'],['tecnicos','Técnicos'],['competicoes','Calendário de competições'],['info_assoc','Info das associações'],['ranking','Ranking de atletas'],['categorias','Categorias WT'],['documentos','Documentos']]],['assocs','Associações',null],['comp','Competições',[['combates','Combates'],['inscricoes','Inscrições'],['nomeacoes','Seleção']]],['adm','Administração',[['contas','Contas'],['permissoes','Permissões admin'],['visibilidade','Visibilidade']]]];
+const GER=[['associacoes','Dados da associação'],['orgaos_sociais','Órgãos sociais'],['tecnicos','Técnicos'],['clubes','Clubes'],['atletas','Atletas'],['competicoes','Competições'],['inscricoes','Inscrições'],['documentos','Documentos']];
+const LBL={nome:'Nome',associacao_id:'Associação',cargo:'Cargo',funcao:'Função',contacto:'Contacto',morada:'Morada',representante:'Representante',responsavel:'Responsável',clube_id:'Clube',data_nascimento:'Data de nascimento',sexo:'Sexo',categoria_peso:'Categoria de peso',tipo:'Classificação',data:'Data',local:'Local',competicao_id:'Competição',atleta_id:'Atleta',pesagem_ok:'Pesagem OK',medalha:'Medalha',titulo:'Título',url:'Ligação (URL)',escalao:'Escalão',idade:'Idade',peso_max:'Peso máx. (kg)',admin_id:'Conta admin',tabela:'Tabela',visitante:'Visitante vê',utilizador:'Utilizador vê'};
+const lb=k=>tab=='competicoes'&&k=='nome'?'Nome da competição':LBL[k]||k,cap=v=>v?String(v)[0].toUpperCase()+String(v).slice(1):v;
 async function init(){const{data:{session}}=await db.auth.getSession();await setS(session);db.auth.onAuthStateChange((_,s)=>setS(s))}
 async function setS(s){P=null;if(s){const{data}=await db.from('perfis').select('*').eq('id',s.user.id).maybeSingle();P=data}
 $('#lg').hidden=!!s;$('#lo').hidden=!s;$('#who').textContent=P?`${P.nivel}`:s?'sem perfil':'Visitante';
-const tabs=[['inicio','Início'],['ranking','Rankings'],['combates','Competição'],...Object.entries(T).filter(([k,c])=>!c.m||P?.nivel=='master').map(([k,c])=>[k,c.t])];
-if(P?.nivel=='master')tabs.push(['contas','Contas']);
-$('#nav').innerHTML=tabs.map(([k,n])=>`<button class="${k==tab?'on':''}" onclick="go('${k}')">${n}</button>`).join('');view()}
+const mm=MENU.filter(m=>m[0]!='adm'||P?.nivel=='master'),cur=MENU.find(m=>m[0]==mn);
+$('#nav').innerHTML=mm.map(([i,n])=>`<button class="${i==mn?'on':''}" onclick="gt('${i}')">${n}</button>`).join('');
+const sb=mn=='assocs'&&SC&&SC!='fct'?GER.map(([k,n])=>[k,n,`'${k}','assocs','${SC}'`]):(cur?.[2]||[]).map(([k,n])=>[k,n,`'${k}','${mn}'`]);
+$('#sub').innerHTML=sb.map(([k,n,a])=>`<button class="${k==tab?'on':''}" onclick="go(${a})">${n}</button>`).join('');$('#sub').hidden=!sb.length;view()}
 async function login(){const{error}=await db.auth.signInWithPassword({email:$('#em').value,password:$('#pw').value});if(error)alert(error.message)}
-function go(k){tab=k;ED=null;db.auth.getSession().then(({data})=>setS(data.session))}
-async function opts(f){for(const k of f)if(REF[k]&&!O[k]){const{data}=await db.from(REF[k]).select('id,nome');O[k]=Object.fromEntries((data||[]).map(r=>[r.id,r.nome]))}}
+const FS=['orgaos_sociais','tecnicos','competicoes','documentos'];
+function go(k,g,sc){tab=k;if(g)mn=g;ED=null;O={};SC=sc!==undefined?sc:(mn=='fct'&&FS.includes(k)?'fct':null);if(SC&&SC!='fct')AID=SC;db.auth.getSession().then(({data})=>setS(data.session))}
+function gt(i){const m=MENU.find(x=>x[0]==i);go(m[2]?m[2][0][0]:i=='inicio'?'inicio':'assocs',i)}
+const gerir=id=>go('associacoes','assocs',id);
+async function opts(f){const gs=SC&&SC!='fct'&&SC;for(const k of f)if(REF[k]&&!O[k]){let q=db.from(REF[k]).select('id,nome');if(gs&&(k=='atleta_id'||k=='clube_id'))q=q.eq('associacao_id',gs);const{data}=await q;O[k]=Object.fromEntries((data||[]).map(r=>[r.id,r.nome]))}}
 const inp=(k,v)=>REF[k]?`<select name="${k}"><option value="">—</option>${Object.entries(O[k]||{}).map(([i,n])=>`<option value="${i}" ${v==i?'selected':''}>${esc(n)}</option>`).join('')}</select>`:
-SEL[k]?`<select name="${k}">${SEL[k].map(o=>`<option ${v==o?'selected':''}>${o}</option>`).join('')}</select>`:
+SEL[k]?`<select name="${k}">${SEL[k].map(o=>`<option value="${o}" ${v==o?'selected':''}>${cap(o)}</option>`).join('')}</select>`:
 k=='categoria_peso'?`<input name="${k}" list="cats" value="${esc(v)}"><datalist id="cats">${(window.CATS||[]).map(n=>`<option>${n}`).join('')}</datalist>`:BOOL.includes(k)?`<input type="checkbox" name="${k}" ${v?'checked':''}>`:`<input name="${k}" type="${k.startsWith('data')?'date':'text'}" value="${esc(v)}">`;
-function view(){({inicio:inicio,assoc:assocV,ranking:rank,combates:comb,contas:contas})[tab]?.()||crud()}
-async function crud(){const c=T[tab],lg=!!P;await opts(c.f);if(tab=='atletas'&&!window.CATS){const{data:ct}=await db.from('categorias').select('nome');window.CATS=[...new Set((ct||[]).map(x=>x.nome))]}
-const cols=['id',...c.f.filter(f=>lg||!SENS.includes(f))];
-const{data,error}=await db.from(c.v||tab).select(c.v?'*':cols.join()).limit(1000);if(error)return $('#app').innerHTML=esc(error.message);
-const show=[...c.f.filter(f=>!c.v||!SENS.includes(f)),...(c.x||[])].filter(f=>lg||!SENS.includes(f));
-$('#app').innerHTML=`<h2>${c.t}</h2>`+(lg?`<form id="f" onsubmit="save(event)">${c.f.map(k=>`<label>${k}${inp(k,ED?.[k])}</label>`).join('')}<button>${ED?'Atualizar':'Adicionar'}</button></form>`+(c.imp?`<p><button onclick="tpl()">⬇ Modelo Excel</button> <input type="file" accept=".xlsx,.xls" onchange="imp(this.files[0])"></p>`:''):'')+
-`<div class="w"><table><tr>${show.map(f=>`<th>${f}</th>`).join('')}<th></th></tr>${data.map(r=>`<tr>${show.map(f=>`<td>${REF[f]?esc(O[f]?.[r[f]]||r[f]):r[f]===true?'✔':esc(r[f])}</td>`).join('')}<td>${lg?`<a href="#" onclick="edit('${r.id}');return false">✎</a> <a href="#" onclick="del('${r.id}');return false">🗑</a>`:''}</td></tr>`).join('')}</table></div>`}
+function view(){({inicio:inicio,assoc:assocV,assocs:assocs,info_assoc:infoA,ranking:rank,combates:comb,contas:contas})[tab]?.()||crud()}
+async function crud(){const c=T[tab],lg=!!P,gs=SC&&SC!='fct'&&SC;await opts(c.f);if(tab=='atletas'&&!window.CATS){const{data:ct}=await db.from('categorias').select('nome');window.CATS=[...new Set((ct||[]).map(x=>x.nome))]}
+const sel=c.v?'*':['id',...c.f.filter(f=>lg||!SENS.includes(f))].join();let q=db.from(c.v||tab).select(sel).limit(1000);
+if(SC&&c.f.includes('associacao_id'))q=SC=='fct'?q.is('associacao_id',null):q.eq('associacao_id',SC);
+if(tab=='associacoes'&&gs)q=q.eq('id',gs);
+if(tab=='inscricoes'&&gs){const{data:ids}=await db.from('atletas').select('id').eq('associacao_id',gs);q=q.in('atleta_id',(ids||[]).map(x=>x.id))}
+const{data,error}=await q;if(error)return $('#app').innerHTML=esc(error.message);
+if(gs){const{data:a}=await db.from('associacoes').select('nome').eq('id',gs).maybeSingle();GN=a?.nome||GN}
+const ce=lg&&!(P.nivel=='utilizador'&&SC&&SC!=P.associacao_id)&&(tab!='categorias'||P.nivel=='master');
+if(tab=='associacoes'&&gs&&ce&&!ED){const{data:f}=await db.from('associacoes').select('*').eq('id',gs).maybeSingle();ED=f}
+const ff=c.f.filter(k=>!(SC&&k=='associacao_id')),show=[...c.f.filter(f=>!c.v||!SENS.includes(f)),...(c.x||[])].filter(f=>(lg||!SENS.includes(f))&&!(SC&&f=='associacao_id'));
+$('#app').innerHTML=`<h2>${c.t}${gs?' — '+esc(GN):SC=='fct'?' da FCT':''}</h2>`+(ce?`<form id="f" onsubmit="save(event)">${ff.map(k=>`<label>${lb(k)}${inp(k,ED?.[k])}</label>`).join('')}<button>${ED?'Atualizar':'Adicionar'}</button></form>`+(c.imp?`<p><button onclick="tpl()">⬇ Modelo Excel</button> <input type="file" accept=".xlsx,.xls" onchange="imp(this.files[0])"></p>`:''):'')+
+`<div class="w"><table><tr>${show.map(f=>`<th>${lb(f)}</th>`).join('')}<th></th></tr>${(data||[]).map(r=>`<tr>${show.map(f=>`<td>${REF[f]?esc(O[f]?.[r[f]]||r[f]):r[f]===true?'✔':esc(f=='tipo'?cap(r[f]):r[f])}</td>`).join('')}<td>${ce&&tab!='associacoes'?`<a href="#" onclick="edit('${r.id}');return false">✎</a> <a href="#" onclick="del('${r.id}');return false">🗑</a>`:''}</td></tr>`).join('')}</table></div>`}
 async function edit(id){const{data}=await db.from(tab).select('*').eq('id',id).single();ED=data;crud();scrollTo(0,0)}
 async function del(id){if(!confirm('Apagar?'))return;const{error}=await db.from(tab).delete().eq('id',id);if(error)alert(error.message);crud()}
-async function save(e){e.preventDefault();const r={};for(const k of T[tab].f){const el=e.target.elements[k];r[k]=el.type=='checkbox'?el.checked:el.value||null}
-if(P.nivel=='utilizador'&&T[tab].f.includes('associacao_id'))r.associacao_id=P.associacao_id;if(ED)r.id=ED.id;
+async function save(e){e.preventDefault();const r={};for(const k of T[tab].f){const el=e.target.elements[k];if(!el)continue;r[k]=el.type=='checkbox'?el.checked:el.value||null}
+if(T[tab].f.includes('associacao_id')){if(SC)r.associacao_id=SC=='fct'?null:SC;if(P.nivel=='utilizador')r.associacao_id=P.associacao_id}if(ED)r.id=ED.id;
 const{error}=await db.from(tab).upsert(r);if(error)alert(error.message);ED=null;crud()}
 const COLS=['nome','data_nascimento','sexo','cni','nif','categoria_peso'];
 function tpl(){const w=XLSX.utils.book_new();XLSX.utils.book_append_sheet(w,XLSX.utils.aoa_to_sheet([COLS,['Nome Completo','2008-05-14','M','000000','000000','-58kg']]),'Atletas');XLSX.writeFile(w,'modelo_atletas_FCT.xlsx')}
 async function imp(f){if(!f)return;const w=XLSX.read(await f.arrayBuffer(),{cellDates:true}),rows=XLSX.utils.sheet_to_json(w.Sheets[w.SheetNames[0]]);
-const a=P.associacao_id||document.querySelector('[name=associacao_id]').value;if(!a)return alert('Escolha a associação no formulário.');
+const a=(SC&&SC!='fct'?SC:null)||P.associacao_id||document.querySelector('[name=associacao_id]')?.value;if(!a)return alert('Escolha a associação no formulário.');
 const out=rows.filter(r=>r.nome&&r.data_nascimento).map(r=>{const o={associacao_id:a};COLS.forEach(k=>o[k]=r[k]instanceof Date?new Date(r[k]-r[k].getTimezoneOffset()*6e4).toISOString().slice(0,10):r[k]??null);return o});
 const{error}=await db.from('atletas').insert(out);alert(error?error.message:out.length+' atletas importados');crud()}
 async function rank(){const{data}=await db.from('ranking').select('*');const A=Object.fromEntries((await db.from('associacoes').select('id,nome')).data?.map(a=>[a.id,a.nome])||[]);
@@ -103,26 +118,38 @@ const I=i.map(x=>({Atleta:g(x.atleta_id),'Associação':as(x.atleta_id),Categori
 if(t=='x'){const w=XLSX.utils.book_new();XLSX.utils.book_append_sheet(w,XLSX.utils.json_to_sheet(I),'Inscritos');XLSX.utils.book_append_sheet(w,XLSX.utils.json_to_sheet(R),'Combates');XLSX.writeFile(w,'competicao_FCT.xlsx')}
 else{const th=r=>r.length?`<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;width:100%;font:12px sans-serif"><tr>${Object.keys(r[0]).map(k=>`<th>${k}</th>`).join('')}</tr>${r.map(o=>`<tr>${Object.values(o).map(v=>`<td>${esc(v)}</td>`).join('')}</tr>`).join('')}</table>`:'<p>Sem dados.</p>';
 const w=open('');w.document.write(`<title>${esc(nm)}</title><h2>FCT – ${esc(nm)}</h2><h3>Inscritos</h3>${th(I)}<h3>Combates</h3>${th(R)}`);w.document.close();w.print()}}
-async function contas(){await opts(['associacao_id']);$('#app').innerHTML=`<h2>Criar conta</h2><form onsubmit="mk(event)"><label>Email<input name="e" type="email" required></label><label>Senha<input name="p" type="password" minlength="6" required></label><label>Nível<select name="n"><option>utilizador</option><option>admin</option><option>master</option></select></label><label>Associação${inp('associacao_id')}</label><button>Criar</button></form><p>Depois, em “Permissões admin” e “Visibilidade” defina o que cada nível pode editar/ver.</p>`}
-async function mk(e){e.preventDefault();const f=e.target.elements,t=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:false}});
-const{error}=await t.auth.signUp({email:f.e.value,password:f.p.value});if(error)return alert(error.message);
-const{error:e2}=await db.rpc('atribuir_perfil',{p_email:f.e.value,p_nivel:f.n.value,p_assoc:f.associacao_id.value||null});alert(e2?e2.message:'Conta criada');e.target.reset()}
+async function contas(){await opts(['associacao_id']);const{data:p}=await db.from('perfis').select('id,nome,nivel,associacao_id');
+const ns=`<select name="n" onchange="this.form.associacao_id.required=this.value=='utilizador'"><option>utilizador</option><option>admin</option><option>master</option></select>`,as=inp('associacao_id').replace('<select','<select required');
+$('#app').innerHTML=`<h2>Contas</h2><h3>Criar conta nova</h3><form onsubmit="mk(event)"><label>Email<input name="e" type="email" required></label><label>Senha<input name="p" type="password" minlength="6" required></label><label>Nível${ns}</label><label>Associação (obrigatória para utilizador)${as}</label><button>Criar</button></form>
+<h3>Alterar nível/associação de uma conta existente</h3><form onsubmit="mk(event,1)"><label>Email da conta<input name="e" type="email" required></label><label>Nível${ns}</label><label>Associação${as}</label><button>Atualizar</button></form>
+<h3>Contas existentes</h3>`+tb((p||[]).map(x=>({Conta:x.nome,Nível:x.nivel,Associação:O.associacao_id?.[x.associacao_id]||''})),['Conta','Nível','Associação'])}
+async function mk(e,alt){e.preventDefault();const f=e.target.elements;if(f.n.value=='utilizador'&&!f.associacao_id.value)return alert('Uma conta de nível utilizador tem de ser associada a uma associação.');
+if(!alt){const t=supabase.createClient(SB,SB_KEY.trim(),{auth:{persistSession:false}});const{error}=await t.auth.signUp({email:f.e.value,password:f.p.value});if(error)return alert(error.message)}
+const{error:e2}=await db.rpc('atribuir_perfil',{p_email:f.e.value,p_nivel:f.n.value,p_assoc:f.n.value=='utilizador'?f.associacao_id.value:null});alert(e2?e2.message:alt?'Conta atualizada':'Conta criada');if(!e2)contas()}
 const card=(t,s,o)=>`<div class="cd" onclick="${o}"><b>${esc(t)}</b><br><small>${s}</small></div>`;
 const tb=(r,c)=>r?.length?`<div class="w"><table><tr>${c.map(k=>`<th>${k}</th>`).join('')}</tr>${r.map(x=>`<tr>${c.map(k=>`<td>${esc(x[k])}</td>`).join('')}</tr>`).join('')}</table></div>`:'<p><small>Sem registos.</small></p>';
-function ver(id){AID=id;go('assoc')}
+function ver(id){AID=id;go('assoc','assocs')}
 async function inicio(){const[{data:c},{data:a},{data:t},{data:cl}]=await Promise.all([db.from('competicoes').select('id,nome,tipo,data,local').order('data'),db.from('associacoes').select('id,nome'),db.from('atletas_v').select('associacao_id'),db.from('clubes').select('associacao_id')]);
-const h=new Date().toISOString().slice(0,10),C=c||[],cp=x=>card(x.nome,`${esc(x.tipo)} · ${x.data||''} · ${esc(x.local||'')}`,`CP='${x.id}';go('combates')`);
+const h=new Date().toISOString().slice(0,10),C=c||[],cp=x=>card(x.nome,`${esc(x.tipo)} · ${x.data||''} · ${esc(x.local||'')}`,`CP='${x.id}';go('combates','comp')`);
 $('#app').innerHTML=`<section class="hero"><h2>Bem-vindo à Federação Cabo-Verdiana de Taekwondo</h2><p>Consulte competições, associações, atletas e rankings.${P?'':' Está em modo visitante (só leitura).'}</p></section>
 <h3>Próximas competições</h3><div class="g">${C.filter(x=>x.data>=h).slice(0,4).map(cp).join('')||'<small>Sem competições agendadas.</small>'}</div>
 <h3>Competições recentes</h3><div class="g">${C.filter(x=>x.data<h).reverse().slice(0,4).map(cp).join('')||'<small>Sem competições realizadas.</small>'}</div>
-<h3>Federação</h3><div class="g">${card('FCT','Órgãos sociais, técnicos, documentos e ranking nacional',"ver('fct')")}</div>
+<h3>Federação</h3><div class="g">${card('FCT','Órgãos sociais, técnicos, documentos e ranking nacional',"go('orgaos_sociais','fct')")}</div>
 <h3>Associações</h3><div class="g">${(a||[]).map(x=>card(x.nome,`${(t||[]).filter(y=>y.associacao_id==x.id).length} atletas · ${(cl||[]).filter(y=>y.associacao_id==x.id).length} clubes`,`ver('${x.id}')`)).join('')||'<small>Sem associações registadas.</small>'}</div>`}
+async function assocs(){const[{data:a},{data:t},{data:cl}]=await Promise.all([db.from('associacoes').select('id,nome,representante,contacto').order('nome'),db.from('atletas_v').select('associacao_id'),db.from('clubes').select('associacao_id')]);
+const pg=id=>P&&(P.nivel=='master'||P.nivel=='admin'||(P.nivel=='utilizador'&&P.associacao_id==id)),n=(l,id)=>(l||[]).filter(y=>y.associacao_id==id).length;
+$('#app').innerHTML=`<h2>Associações</h2>`+(['master','admin'].includes(P?.nivel)?`<form onsubmit="novaA(event)"><label>Nova associação<input name="n" required></label><button>Adicionar</button></form>`:'')+
+`<div class="w"><table><tr><th>Associação</th><th>Representante</th><th>Contacto</th><th>Clubes</th><th>Atletas</th><th></th></tr>${(a||[]).map(x=>`<tr><td>${esc(x.nome)}</td><td>${esc(x.representante)}</td><td>${esc(x.contacto)}</td><td>${n(cl,x.id)}</td><td>${n(t,x.id)}</td><td><button onclick="ver('${x.id}')">Ver ficha</button> ${pg(x.id)?`<button onclick="gerir('${x.id}')">⚙ Gerir</button>`:''}</td></tr>`).join('')}</table></div>`}
+async function novaA(e){e.preventDefault();const{error}=await db.from('associacoes').insert({nome:e.target.n.value});if(error)alert(error.message);assocs()}
+async function infoA(){const lg=!!P,[{data:a},{data:t},{data:cl}]=await Promise.all([db.from('associacoes').select(lg?'id,nome,nif,nib,morada,contacto,representante':'id,nome,morada,contacto,representante').order('nome'),db.from('atletas_v').select('associacao_id'),db.from('clubes').select('associacao_id')]);
+const n=(l,id)=>(l||[]).filter(y=>y.associacao_id==id).length,H=['Associação','Representante','Contacto','Morada',...(lg?['NIF','NIB']:[]),'Clubes','Atletas',''];
+$('#app').innerHTML=`<h2>Associações — informação completa</h2><div class="w"><table><tr>${H.map(h=>`<th>${h}</th>`).join('')}</tr>${(a||[]).map(x=>`<tr><td>${esc(x.nome)}</td><td>${esc(x.representante)}</td><td>${esc(x.contacto)}</td><td>${esc(x.morada)}</td>${lg?`<td>${esc(x.nif)}</td><td>${esc(x.nib)}</td>`:''}<td>${n(cl,x.id)}</td><td>${n(t,x.id)}</td><td><button onclick="ver('${x.id}')">Ver ficha</button></td></tr>`).join('')}</table></div>`}
 const podio=R=>{const g={},G={};R.forEach(r=>{const o=g[r.id]||(g[r.id]={...r,pontos:0});o.pontos+=+r.pontos});Object.values(g).forEach(r=>(G[`${r.escalao} · ${r.sexo} · ${r.categoria_peso||'—'}`]??=[]).push(r));
 return Object.entries(G).sort().map(([k,l])=>`<h4>${k}</h4>`+tb(l.sort((a,b)=>b.pontos-a.pontos).slice(0,3).map((r,i)=>({'#':i+1,Atleta:r.nome,Pontos:r.pontos})),['#','Atleta','Pontos'])).join('')||'<p><small>Sem ranking.</small></p>'};
 async function assocV(){const f=AID=='fct',q=(t,s)=>{const r=db.from(t).select(s);return f?r.is('associacao_id',null):r.eq('associacao_id',AID)};
 const[{data:o},{data:te},{data:d}]=await Promise.all([q('orgaos_sociais','nome,cargo,contacto'),q('tecnicos','nome,funcao,contacto'),q('documentos','titulo,url')]);
 const docs=`<ul>${(d||[]).filter(x=>/^https?:/.test(x.url||'')).map(x=>`<li><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.titulo)}</a></li>`).join('')||'<li><small>Sem documentos.</small></li>'}</ul>`;
-let h=`<button onclick="go('inicio')">← Início</button>`;
+let h=`<button onclick="go('assocs','assocs')">← Associações</button>`;
 if(f){const{data:rk}=await db.from('ranking').select('*').eq('tipo','nacional');
 h+=`<h2>Federação Cabo-Verdiana de Taekwondo</h2><h3>Órgãos sociais</h3>${tb(o,['nome','cargo','contacto'])}<h3>Técnicos</h3>${tb(te,['nome','funcao','contacto'])}<h3>Documentos</h3>${docs}<h3>Ranking nacional (top 3)</h3>${podio(rk||[])}`}
 else{const[{data:as},{data:cl},{data:at},{data:rk}]=await Promise.all([db.from('associacoes').select('nome,morada,contacto,representante').eq('id',AID).single(),db.from('clubes').select('nome,responsavel,contacto').eq('associacao_id',AID),db.from('atletas_v').select('id,nome,idade,sexo,escalao,categoria_peso').eq('associacao_id',AID).order('nome'),db.from('ranking').select('*').eq('associacao_id',AID)]);
