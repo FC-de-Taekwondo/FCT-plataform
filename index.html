@@ -14,7 +14,7 @@ if(typeof supabase=='undefined'){_m('Não foi possível carregar a biblioteca Su
 if(SB_URL.startsWith('COLE_AQUI')||SB_KEY.startsWith('COLE_AQUI')){_m('Falta configurar o URL e a chave do Supabase no início do script do index.html (Passo 3 do LEIA-ME).');throw 'cfg'}
 const db=supabase.createClient(SB_URL,SB_KEY),$=s=>document.querySelector(s);
 let P=null,tab='inicio',O={},ED=null,AID=null;
-const REF={associacao_id:'associacoes',clube_id:'clubes',atleta_id:'atletas_v',competicao_id:'competicoes',admin_id:'perfis'};
+const REF={associacao_id:'ASSOCIAÇÕES',clube_id:'clubes',atleta_id:'atletas_v',competicao_id:'competicoes',admin_id:'perfis'};
 const SEL={tipo:['nacional','regional','internacional'],sexo:['M','F'],medalha:['','ouro','prata','bronze'],funcao:['Selecionador','Árbitro','Treinador','Preparador físico','Médico','Psicólogo','Fisioterapeuta','Outro']};
 const BOOL=['pesagem_ok','visitante','utilizador'],SENS=['nif','nib','cni'];
 const T={associacoes:{t:'Associações',f:['nome','nif','nib','morada','contacto','representante']},
