@@ -9,7 +9,7 @@ main{padding:16px;max-width:1200px;margin:auto}table{border-collapse:collapse;wi
 <script>
 const _m=m=>{document.getElementById('app').innerHTML='<p style="color:#c8102e"><b>⚠ '+m+'</b></p>'};
 addEventListener('error',e=>{if(!/cfg/.test(e.message))_m('Erro: '+e.message)});addEventListener('unhandledrejection',e=>_m('Erro: '+(e.reason?.message||e.reason)));
-const SB_URL='https://ovvmanlogsydcwbkkyuf.supabase.co/rest/v1/',SB_KEY='sb_publishable_iVaCCEP130eP0-RabsWC_w__IH0496H';
+const SB_URL='https://ovvmanlogsydcwbkkyuf.supabase.co',SB_KEY='sb_publishable_iVaCCEP130eP0-RabsWC_w__IH0496H';
 if(typeof supabase=='undefined'){_m('Não foi possível carregar a biblioteca Supabase (verifique a internet ou bloqueios).');throw 'cfg'}
 if(SB_URL.startsWith('COLE_AQUI')||SB_KEY.startsWith('COLE_AQUI')){_m('Falta configurar o URL e a chave do Supabase no início do script do index.html (Passo 3 do LEIA-ME).');throw 'cfg'}
 const db=supabase.createClient(SB_URL,SB_KEY),$=s=>document.querySelector(s);
