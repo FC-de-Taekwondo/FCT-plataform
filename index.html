@@ -1,0 +1,135 @@
+<!doctype html><html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FCT · Gestão</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>:root{color-scheme:light dark;--a:#c8102e}body{font:15px system-ui;margin:0}header{background:var(--a);color:#fff;padding:10px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}header h1{font-size:18px;margin:0;flex:1}
+header input{padding:5px}nav{display:flex;gap:4px;flex-wrap:wrap;padding:8px 16px;border-bottom:1px solid #8885}nav button{border:0;padding:6px 10px;border-radius:6px;cursor:pointer}nav .on{background:var(--a);color:#fff}
+main{padding:16px;max-width:1200px;margin:auto}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #8885;padding:5px 8px;text-align:left}.w{overflow-x:auto}form{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;padding:10px;border:1px solid #8885;border-radius:8px}label{display:flex;flex-direction:column;font-size:12px}input,select,button{font:inherit}h3{margin:16px 0 4px}.hero{background:linear-gradient(135deg,var(--a),#1a1a40);color:#fff;border-radius:12px;padding:24px;margin-bottom:8px}.hero h2{margin:0 0 6px}.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}.cd{border:1px solid #8885;border-radius:10px;padding:12px;cursor:pointer}.cd:hover{border-color:var(--a)}.br{display:flex;gap:16px;overflow-x:auto;padding-bottom:8px}.col{display:flex;flex-direction:column;justify-content:space-around;gap:10px;min-width:240px}.m{border:1px solid #8885;border-radius:8px;padding:6px}.m input[type=number]{width:52px}.w1{font-weight:700;color:var(--a)}</style></head><body>
+<header><h1>🥋 Federação Cabo-Verdiana de Taekwondo</h1><span id="who"></span><span id="lg"><input id="em" placeholder="email"><input id="pw" type="password" placeholder="senha"><button onclick="login()">Entrar</button></span><button id="lo" hidden onclick="db.auth.signOut()">Sair</button></header>
+<nav id="nav"></nav><main id="app">A carregar…</main>
+<script>
+const _m=m=>{document.getElementById('app').innerHTML='<p style="color:#c8102e"><b>⚠ '+m+'</b></p>'};
+addEventListener('error',e=>{if(!/cfg/.test(e.message))_m('Erro: '+e.message)});addEventListener('unhandledrejection',e=>_m('Erro: '+(e.reason?.message||e.reason)));
+const SB_URL='https://ovvmanlogsydcwbkkyuf.supabase.co/rest/v1/',SB_KEY='sb_publishable_iVaCCEP130eP0-RabsWC_w__IH0496H';
+if(typeof supabase=='undefined'){_m('Não foi possível carregar a biblioteca Supabase (verifique a internet ou bloqueios).');throw 'cfg'}
+if(SB_URL.startsWith('COLE_AQUI')||SB_KEY.startsWith('COLE_AQUI')){_m('Falta configurar o URL e a chave do Supabase no início do script do index.html (Passo 3 do LEIA-ME).');throw 'cfg'}
+const db=supabase.createClient(SB_URL,SB_KEY),$=s=>document.querySelector(s);
+let P=null,tab='inicio',O={},ED=null,AID=null;
+const REF={associacao_id:'associacoes',clube_id:'clubes',atleta_id:'atletas_v',competicao_id:'competicoes',admin_id:'perfis'};
+const SEL={tipo:['nacional','regional','internacional'],sexo:['M','F'],medalha:['','ouro','prata','bronze'],funcao:['Selecionador','Árbitro','Treinador','Preparador físico','Médico','Psicólogo','Fisioterapeuta','Outro']};
+const BOOL=['pesagem_ok','visitante','utilizador'],SENS=['nif','nib','cni'];
+const T={associacoes:{t:'Associações',f:['nome','nif','nib','morada','contacto','representante']},
+orgaos_sociais:{t:'Órgãos sociais',f:['associacao_id','nome','cargo','contacto']},
+tecnicos:{t:'Técnicos',f:['associacao_id','nome','funcao','contacto']},
+clubes:{t:'Clubes',f:['associacao_id','nome','nif','nib','cni','responsavel','contacto']},
+atletas:{t:'Atletas',v:'atletas_v',f:['associacao_id','clube_id','nome','data_nascimento','sexo','cni','nif','categoria_peso'],x:['idade','escalao'],imp:1},
+competicoes:{t:'Calendário',f:['nome','tipo','data','local','associacao_id']},
+inscricoes:{t:'Inscrições',f:['competicao_id','atleta_id','pesagem_ok','medalha']},
+nomeacoes:{t:'Seleção',f:['atleta_id','competicao_id']},
+documentos:{t:'Documentos',f:['associacao_id','titulo','url']},
+permissoes:{t:'Permissões admin',m:1,f:['admin_id','tabela']},visibilidade:{t:'Visibilidade',m:1,f:['tabela','visitante','utilizador']},categorias:{t:'Categorias WT',f:['escalao','sexo','nome','peso_max']}};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function init(){const{data:{session}}=await db.auth.getSession();await setS(session);db.auth.onAuthStateChange((_,s)=>setS(s))}
+async function setS(s){P=null;if(s){const{data}=await db.from('perfis').select('*').eq('id',s.user.id).maybeSingle();P=data}
+$('#lg').hidden=!!s;$('#lo').hidden=!s;$('#who').textContent=P?`${P.nivel}`:s?'sem perfil':'Visitante';
+const tabs=[['inicio','Início'],['ranking','Rankings'],['combates','Competição'],...Object.entries(T).filter(([k,c])=>!c.m||P?.nivel=='master').map(([k,c])=>[k,c.t])];
+if(P?.nivel=='master')tabs.push(['contas','Contas']);
+$('#nav').innerHTML=tabs.map(([k,n])=>`<button class="${k==tab?'on':''}" onclick="go('${k}')">${n}</button>`).join('');view()}
+async function login(){const{error}=await db.auth.signInWithPassword({email:$('#em').value,password:$('#pw').value});if(error)alert(error.message)}
+function go(k){tab=k;ED=null;db.auth.getSession().then(({data})=>setS(data.session))}
+async function opts(f){for(const k of f)if(REF[k]&&!O[k]){const{data}=await db.from(REF[k]).select('id,nome');O[k]=Object.fromEntries((data||[]).map(r=>[r.id,r.nome]))}}
+const inp=(k,v)=>REF[k]?`<select name="${k}"><option value="">—</option>${Object.entries(O[k]||{}).map(([i,n])=>`<option value="${i}" ${v==i?'selected':''}>${esc(n)}</option>`).join('')}</select>`:
+SEL[k]?`<select name="${k}">${SEL[k].map(o=>`<option ${v==o?'selected':''}>${o}</option>`).join('')}</select>`:
+k=='categoria_peso'?`<input name="${k}" list="cats" value="${esc(v)}"><datalist id="cats">${(window.CATS||[]).map(n=>`<option>${n}`).join('')}</datalist>`:BOOL.includes(k)?`<input type="checkbox" name="${k}" ${v?'checked':''}>`:`<input name="${k}" type="${k.startsWith('data')?'date':'text'}" value="${esc(v)}">`;
+function view(){({inicio:inicio,assoc:assocV,ranking:rank,combates:comb,contas:contas})[tab]?.()||crud()}
+async function crud(){const c=T[tab],lg=!!P;await opts(c.f);if(tab=='atletas'&&!window.CATS){const{data:ct}=await db.from('categorias').select('nome');window.CATS=[...new Set((ct||[]).map(x=>x.nome))]}
+const cols=['id',...c.f.filter(f=>lg||!SENS.includes(f))];
+const{data,error}=await db.from(c.v||tab).select(c.v?'*':cols.join()).limit(1000);if(error)return $('#app').innerHTML=esc(error.message);
+const show=[...c.f.filter(f=>!c.v||!SENS.includes(f)),...(c.x||[])].filter(f=>lg||!SENS.includes(f));
+$('#app').innerHTML=`<h2>${c.t}</h2>`+(lg?`<form id="f" onsubmit="save(event)">${c.f.map(k=>`<label>${k}${inp(k,ED?.[k])}</label>`).join('')}<button>${ED?'Atualizar':'Adicionar'}</button></form>`+(c.imp?`<p><button onclick="tpl()">⬇ Modelo Excel</button> <input type="file" accept=".xlsx,.xls" onchange="imp(this.files[0])"></p>`:''):'')+
+`<div class="w"><table><tr>${show.map(f=>`<th>${f}</th>`).join('')}<th></th></tr>${data.map(r=>`<tr>${show.map(f=>`<td>${REF[f]?esc(O[f]?.[r[f]]||r[f]):r[f]===true?'✔':esc(r[f])}</td>`).join('')}<td>${lg?`<a href="#" onclick="edit('${r.id}');return false">✎</a> <a href="#" onclick="del('${r.id}');return false">🗑</a>`:''}</td></tr>`).join('')}</table></div>`}
+async function edit(id){const{data}=await db.from(tab).select('*').eq('id',id).single();ED=data;crud();scrollTo(0,0)}
+async function del(id){if(!confirm('Apagar?'))return;const{error}=await db.from(tab).delete().eq('id',id);if(error)alert(error.message);crud()}
+async function save(e){e.preventDefault();const r={};for(const k of T[tab].f){const el=e.target.elements[k];r[k]=el.type=='checkbox'?el.checked:el.value||null}
+if(P.nivel=='utilizador'&&T[tab].f.includes('associacao_id'))r.associacao_id=P.associacao_id;if(ED)r.id=ED.id;
+const{error}=await db.from(tab).upsert(r);if(error)alert(error.message);ED=null;crud()}
+const COLS=['nome','data_nascimento','sexo','cni','nif','categoria_peso'];
+function tpl(){const w=XLSX.utils.book_new();XLSX.utils.book_append_sheet(w,XLSX.utils.aoa_to_sheet([COLS,['Nome Completo','2008-05-14','M','000000','000000','-58kg']]),'Atletas');XLSX.writeFile(w,'modelo_atletas_FCT.xlsx')}
+async function imp(f){if(!f)return;const w=XLSX.read(await f.arrayBuffer(),{cellDates:true}),rows=XLSX.utils.sheet_to_json(w.Sheets[w.SheetNames[0]]);
+const a=P.associacao_id||document.querySelector('[name=associacao_id]').value;if(!a)return alert('Escolha a associação no formulário.');
+const out=rows.filter(r=>r.nome&&r.data_nascimento).map(r=>{const o={associacao_id:a};COLS.forEach(k=>o[k]=r[k]instanceof Date?new Date(r[k]-r[k].getTimezoneOffset()*6e4).toISOString().slice(0,10):r[k]??null);return o});
+const{error}=await db.from('atletas').insert(out);alert(error?error.message:out.length+' atletas importados');crud()}
+async function rank(){const{data}=await db.from('ranking').select('*');const A=Object.fromEntries((await db.from('associacoes').select('id,nome')).data?.map(a=>[a.id,a.nome])||[]);
+window.RK=data||[];window.AS=A;$('#app').innerHTML=`<h2>Rankings</h2><form onchange="rk()"><label>Âmbito<select id="sc"><option value="nacional">Nacional</option><option value="regional">Regional (por associação)</option><option value="todos">Geral (todas as competições)</option><option value="selecao">Nomeações à seleção</option></select></label>
+<label>Associação<select id="as"><option value="">Todas</option>${Object.entries(A).map(([i,n])=>`<option value="${i}">${esc(n)}</option>`).join('')}</select></label>
+<label>Sexo<select id="sx"><option value="">Todos</option><option>M</option><option>F</option></select></label><label>Escalão<select id="es"><option value="">Todos</option><option>Cadete</option><option>Júnior</option><option>Sénior</option><option>Infantil</option></select></label><label>Pódio<input type="checkbox" id="pd"></label></form><div id="rk"></div>`;rk()}
+async function rk(){const sc=$('#sc').value,as=$('#as').value,sx=$('#sx').value,es=$('#es').value;let R;
+if(sc=='selecao'){const[{data:n},{data:a}]=await Promise.all([db.from('nomeacoes').select('atleta_id'),db.from('atletas_v').select('id,nome,associacao_id,sexo,categoria_peso,escalao')]);const m={};n?.forEach(x=>m[x.atleta_id]=(m[x.atleta_id]||0)+1);R=(a||[]).filter(x=>m[x.id]).map(x=>({...x,pontos:m[x.id]}))}
+else{const g={};RK.filter(r=>sc=='todos'||r.tipo==(sc=='regional'?'regional':'nacional')).forEach(r=>{const o=g[r.id]||(g[r.id]={...r,inscricoes:0,combates:0,vitorias:0,pontos_marcados:0,pontos_sofridos:0,pontos:0});['inscricoes','combates','vitorias','pontos_marcados','pontos_sofridos','pontos'].forEach(k=>o[k]+=+r[k])});R=Object.values(g)}
+R=R.filter(r=>(!as||r.associacao_id==as)&&(!sx||r.sexo==sx)&&(!es||r.escalao==es));const G={};R.forEach(r=>(G[`${r.escalao} · ${r.sexo} · ${r.categoria_peso||'—'}`]??=[]).push(r));
+$('#rk').innerHTML=Object.entries(G).sort().map(([k,l])=>{l.sort((a,b)=>b.pontos-a.pontos);if($('#pd').checked)l=l.slice(0,3);return`<h3>${k}</h3><div class="w"><table><tr><th>#</th><th>Atleta</th><th>Assoc.</th><th>Inscr.</th><th>Combates</th><th>Vit.</th><th>Marcados</th><th>Sofridos</th><th>Pontos</th></tr>${l.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.nome)}</td><td>${esc(AS[r.associacao_id]||'')}</td><td>${r.inscricoes??''}</td><td>${r.combates??''}</td><td>${r.vitorias??''}</td><td>${r.pontos_marcados??''}</td><td>${r.pontos_sofridos??''}</td><td><b>${r.pontos}</b></td></tr>`).join('')}</table></div>`}).join('')||'Sem dados.'}
+let CP='';
+async function comb(){const{data:cs}=await db.from('competicoes').select('id,nome,data').order('data',{ascending:false});
+$('#app').innerHTML=`<h2>Gestão de competição</h2><label>Competição<select id="cp" onchange="CP=this.value;cl()"><option value="">—</option>${(cs||[]).map(c=>`<option value="${c.id}" ${c.id==CP?'selected':''}>${esc(c.nome)} (${c.data||''})</option>`).join('')}</select></label> ${P?'<button onclick="gen()">1ª ronda</button> <button onclick="prox()">Próxima ronda</button> <button onclick="med()">Atribuir medalhas</button>':''} <button onclick="expx()">⬇ Excel</button> <button onclick="expp()">⬇ PDF</button><div id="cl"></div>`;
+if(CP)cl();db.channel('cb').on('postgres_changes',{event:'*',schema:'public',table:'combates'},()=>tab=='combates'&&CP&&cl()).subscribe()}
+const nr=n=>n==1?'Final':n==2?'Meias-finais':null;
+const mt=(x,N)=>`<div class="m" id="c${x.id}"><div class="${x.vencedor&&x.vencedor==x.atleta_a?'w1':''}">${P?`<input type="checkbox" class="pa" title="Presente" ${x.presente_a?'checked':''}> `:''}${esc(N[x.atleta_a]?.nome)} ${P?`<input class="sa" type="number" min="0" value="${x.pontos_a}">`:`<b>${x.pontos_a}</b>`}</div><div class="${x.vencedor&&x.vencedor==x.atleta_b?'w1':''}">${P?`<input type="checkbox" class="pb" title="Presente" ${x.presente_b?'checked':''}> `:''}${esc(N[x.atleta_b]?.nome)} ${P?`<input class="sb" type="number" min="0" value="${x.pontos_b}">`:`<b>${x.pontos_b}</b>`}</div>${P?`<button onclick="res('${x.id}','${x.atleta_a}','${x.atleta_b}')">Guardar</button>`:''}</div>`;
+async function cl(){const[{data:c},{data:a}]=await Promise.all([db.from('combates').select('*').eq('competicao_id',CP).order('ronda'),db.from('atletas_v').select('id,nome,escalao,sexo,categoria_peso')]);const N=Object.fromEntries((a||[]).map(x=>[x.id,x])),G={};
+(c||[]).forEach(x=>{const t=N[x.atleta_a],k=t?`${t.escalao} · ${t.sexo} · ${t.categoria_peso||'—'}`:'?';((G[k]??={})[x.ronda]??=[]).push(x)});
+$('#cl').innerHTML=Object.entries(G).map(([k,R])=>`<h3>${k}</h3><div class="br">${Object.entries(R).map(([r,l])=>`<div class="col"><small>${nr(l.length)||'Ronda '+r}</small>${l.map(m=>mt(m,N)).join('')}</div>`).join('')}</div>`).join('')||'<p>Sem combates.</p>'}
+async function res(id,a,b){const r=$('#c'+id),sa=+r.querySelector('.sa').value,sb=+r.querySelector('.sb').value;
+const{error}=await db.from('combates').update({pontos_a:sa,pontos_b:sb,presente_a:r.querySelector('.pa').checked,presente_b:r.querySelector('.pb').checked,vencedor:sa==sb?null:sa>sb?a:b}).eq('id',id);if(error)alert(error.message)}
+async function grp(){const[{data:i},{data:a}]=await Promise.all([db.from('inscricoes').select('atleta_id,pesagem_ok').eq('competicao_id',CP),db.from('atletas_v').select('id,escalao,sexo,categoria_peso')]);const N=Object.fromEntries(a.map(x=>[x.id,x])),G={};
+i.filter(x=>x.pesagem_ok).forEach(x=>{const t=N[x.atleta_id];if(t)(G[[t.escalao,t.sexo,t.categoria_peso]]??=[]).push(t.id)});return G}
+const pair=(l,r,o)=>{for(let k=0;k+1<l.length;k+=2)o.push({competicao_id:CP,ronda:r,atleta_a:l[k],atleta_b:l[k+1]})};
+async function gen(){if(!CP)return;if(!confirm('Gerar a 1ª ronda só com atletas que passaram na pesagem? (apaga os combates existentes desta competição)'))return;
+const G=await grp(),out=[];Object.values(G).forEach(l=>pair(l.sort(()=>Math.random()-.5),1,out));
+await db.from('combates').delete().eq('competicao_id',CP);const{error}=await db.from('combates').insert(out);if(error)alert(error.message);cl()}
+async function prox(){if(!CP)return;const G=await grp(),{data:c}=await db.from('combates').select('*').eq('competicao_id',CP),out=[];let esp=0;
+Object.values(G).forEach(l=>{const cg=c.filter(x=>l.includes(x.atleta_a)),R=Math.max(0,...cg.map(x=>x.ronda));if(!R)return;let al=[...l];
+for(let r=1;r<=R;r++){const rm=cg.filter(x=>x.ronda==r);if(rm.some(x=>!x.vencedor)){esp++;al=null;break}al=[...rm.map(x=>x.vencedor),...al.filter(id=>!rm.some(x=>x.atleta_a==id||x.atleta_b==id))]}
+if(al&&al.length>1)pair(al,R+1,out)});
+if(!out.length)return alert(esp?'Há combates sem vencedor (empate ou por guardar).':'Nada a gerar: já há campeões ou falta a 1ª ronda.');
+const{error}=await db.from('combates').insert(out);if(error)alert(error.message);cl()}
+async function med(){if(!CP)return;const G=await grp(),{data:c}=await db.from('combates').select('*').eq('competicao_id',CP),u=[];
+Object.values(G).forEach(l=>{const cg=c.filter(x=>l.includes(x.atleta_a)),R=Math.max(0,...cg.map(x=>x.ronda)),f=cg.filter(x=>x.ronda==R);if(f.length!=1||!f[0].vencedor)return;const x=f[0],lo=y=>y.vencedor==y.atleta_a?y.atleta_b:y.atleta_a;
+u.push([x.vencedor,'ouro'],[lo(x),'prata']);const s=cg.filter(y=>y.ronda==R-1);if(s.length==2)s.forEach(y=>y.vencedor&&u.push([lo(y),'bronze']))});
+if(!u.length)return alert('Nenhuma final concluída.');for(const[id,m]of u){const{error}=await db.from('inscricoes').update({medalha:m}).eq('competicao_id',CP).eq('atleta_id',id);if(error)return alert(error.message)}alert(u.length+' medalhas atribuídas')}
+const expx=()=>exp('x'),expp=()=>exp('p');
+async function exp(t){if(!CP)return alert('Escolha a competição.');const nm=$('#cp').selectedOptions[0].text;
+const[{data:c},{data:a},{data:i},{data:s}]=await Promise.all([db.from('combates').select('*').eq('competicao_id',CP).order('ronda'),db.from('atletas_v').select('id,nome,escalao,sexo,categoria_peso,associacao_id'),db.from('inscricoes').select('atleta_id,pesagem_ok,medalha').eq('competicao_id',CP),db.from('associacoes').select('id,nome')]);
+const N=Object.fromEntries(a.map(x=>[x.id,x])),S=Object.fromEntries(s.map(x=>[x.id,x.nome])),g=id=>N[id]?.nome||'',as=id=>S[N[id]?.associacao_id]||'',K=id=>N[id]?`${N[id].escalao} ${N[id].sexo} ${N[id].categoria_peso||''}`:'';
+const R=c.map(x=>({Categoria:K(x.atleta_a),Ronda:x.ronda,'Atleta A':g(x.atleta_a),'Assoc. A':as(x.atleta_a),'Pts A':x.pontos_a,'Pts B':x.pontos_b,'Atleta B':g(x.atleta_b),'Assoc. B':as(x.atleta_b),Vencedor:g(x.vencedor)})).sort((p,q)=>p.Categoria.localeCompare(q.Categoria)||p.Ronda-q.Ronda);
+const I=i.map(x=>({Atleta:g(x.atleta_id),'Associação':as(x.atleta_id),Categoria:K(x.atleta_id),Pesagem:x.pesagem_ok?'OK':'—',Medalha:x.medalha||''}));
+if(t=='x'){const w=XLSX.utils.book_new();XLSX.utils.book_append_sheet(w,XLSX.utils.json_to_sheet(I),'Inscritos');XLSX.utils.book_append_sheet(w,XLSX.utils.json_to_sheet(R),'Combates');XLSX.writeFile(w,'competicao_FCT.xlsx')}
+else{const th=r=>r.length?`<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;width:100%;font:12px sans-serif"><tr>${Object.keys(r[0]).map(k=>`<th>${k}</th>`).join('')}</tr>${r.map(o=>`<tr>${Object.values(o).map(v=>`<td>${esc(v)}</td>`).join('')}</tr>`).join('')}</table>`:'<p>Sem dados.</p>';
+const w=open('');w.document.write(`<title>${esc(nm)}</title><h2>FCT – ${esc(nm)}</h2><h3>Inscritos</h3>${th(I)}<h3>Combates</h3>${th(R)}`);w.document.close();w.print()}}
+async function contas(){await opts(['associacao_id']);$('#app').innerHTML=`<h2>Criar conta</h2><form onsubmit="mk(event)"><label>Email<input name="e" type="email" required></label><label>Senha<input name="p" type="password" minlength="6" required></label><label>Nível<select name="n"><option>utilizador</option><option>admin</option><option>master</option></select></label><label>Associação${inp('associacao_id')}</label><button>Criar</button></form><p>Depois, em “Permissões admin” e “Visibilidade” defina o que cada nível pode editar/ver.</p>`}
+async function mk(e){e.preventDefault();const f=e.target.elements,t=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:false}});
+const{error}=await t.auth.signUp({email:f.e.value,password:f.p.value});if(error)return alert(error.message);
+const{error:e2}=await db.rpc('atribuir_perfil',{p_email:f.e.value,p_nivel:f.n.value,p_assoc:f.associacao_id.value||null});alert(e2?e2.message:'Conta criada');e.target.reset()}
+const card=(t,s,o)=>`<div class="cd" onclick="${o}"><b>${esc(t)}</b><br><small>${s}</small></div>`;
+const tb=(r,c)=>r?.length?`<div class="w"><table><tr>${c.map(k=>`<th>${k}</th>`).join('')}</tr>${r.map(x=>`<tr>${c.map(k=>`<td>${esc(x[k])}</td>`).join('')}</tr>`).join('')}</table></div>`:'<p><small>Sem registos.</small></p>';
+function ver(id){AID=id;go('assoc')}
+async function inicio(){const[{data:c},{data:a},{data:t},{data:cl}]=await Promise.all([db.from('competicoes').select('id,nome,tipo,data,local').order('data'),db.from('associacoes').select('id,nome'),db.from('atletas_v').select('associacao_id'),db.from('clubes').select('associacao_id')]);
+const h=new Date().toISOString().slice(0,10),C=c||[],cp=x=>card(x.nome,`${esc(x.tipo)} · ${x.data||''} · ${esc(x.local||'')}`,`CP='${x.id}';go('combates')`);
+$('#app').innerHTML=`<section class="hero"><h2>Bem-vindo à Federação Cabo-Verdiana de Taekwondo</h2><p>Consulte competições, associações, atletas e rankings.${P?'':' Está em modo visitante (só leitura).'}</p></section>
+<h3>Próximas competições</h3><div class="g">${C.filter(x=>x.data>=h).slice(0,4).map(cp).join('')||'<small>Sem competições agendadas.</small>'}</div>
+<h3>Competições recentes</h3><div class="g">${C.filter(x=>x.data<h).reverse().slice(0,4).map(cp).join('')||'<small>Sem competições realizadas.</small>'}</div>
+<h3>Federação</h3><div class="g">${card('FCT','Órgãos sociais, técnicos, documentos e ranking nacional',"ver('fct')")}</div>
+<h3>Associações</h3><div class="g">${(a||[]).map(x=>card(x.nome,`${(t||[]).filter(y=>y.associacao_id==x.id).length} atletas · ${(cl||[]).filter(y=>y.associacao_id==x.id).length} clubes`,`ver('${x.id}')`)).join('')||'<small>Sem associações registadas.</small>'}</div>`}
+const podio=R=>{const g={},G={};R.forEach(r=>{const o=g[r.id]||(g[r.id]={...r,pontos:0});o.pontos+=+r.pontos});Object.values(g).forEach(r=>(G[`${r.escalao} · ${r.sexo} · ${r.categoria_peso||'—'}`]??=[]).push(r));
+return Object.entries(G).sort().map(([k,l])=>`<h4>${k}</h4>`+tb(l.sort((a,b)=>b.pontos-a.pontos).slice(0,3).map((r,i)=>({'#':i+1,Atleta:r.nome,Pontos:r.pontos})),['#','Atleta','Pontos'])).join('')||'<p><small>Sem ranking.</small></p>'};
+async function assocV(){const f=AID=='fct',q=(t,s)=>{const r=db.from(t).select(s);return f?r.is('associacao_id',null):r.eq('associacao_id',AID)};
+const[{data:o},{data:te},{data:d}]=await Promise.all([q('orgaos_sociais','nome,cargo,contacto'),q('tecnicos','nome,funcao,contacto'),q('documentos','titulo,url')]);
+const docs=`<ul>${(d||[]).filter(x=>/^https?:/.test(x.url||'')).map(x=>`<li><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.titulo)}</a></li>`).join('')||'<li><small>Sem documentos.</small></li>'}</ul>`;
+let h=`<button onclick="go('inicio')">← Início</button>`;
+if(f){const{data:rk}=await db.from('ranking').select('*').eq('tipo','nacional');
+h+=`<h2>Federação Cabo-Verdiana de Taekwondo</h2><h3>Órgãos sociais</h3>${tb(o,['nome','cargo','contacto'])}<h3>Técnicos</h3>${tb(te,['nome','funcao','contacto'])}<h3>Documentos</h3>${docs}<h3>Ranking nacional (top 3)</h3>${podio(rk||[])}`}
+else{const[{data:as},{data:cl},{data:at},{data:rk}]=await Promise.all([db.from('associacoes').select('nome,morada,contacto,representante').eq('id',AID).single(),db.from('clubes').select('nome,responsavel,contacto').eq('associacao_id',AID),db.from('atletas_v').select('id,nome,idade,sexo,escalao,categoria_peso').eq('associacao_id',AID).order('nome'),db.from('ranking').select('*').eq('associacao_id',AID)]);
+h+=`<h2>${esc(as?.nome)}</h2><p>${esc(as?.morada||'')} ${esc(as?.contacto||'')} ${as?.representante?'· Representante: '+esc(as.representante):''}</p><h3>Órgãos sociais</h3>${tb(o,['nome','cargo','contacto'])}<h3>Técnicos</h3>${tb(te,['nome','funcao','contacto'])}<h3>Clubes</h3>${tb(cl,['nome','responsavel','contacto'])}<h3>Ranking da associação (top 3)</h3>${podio(rk||[])}<h3>Atletas (${(at||[]).length})</h3>${tb(at,['nome','idade','sexo','escalao','categoria_peso'])}<h3>Histórico de resultados</h3><select onchange="hist(this.value)"><option value="">Escolha um atleta</option>${(at||[]).map(x=>`<option value="${x.id}">${esc(x.nome)}</option>`).join('')}</select><div id="hs"></div><h3>Documentos</h3>${docs}`}
+$('#app').innerHTML=h}
+async function hist(id){if(!id)return $('#hs').innerHTML='';const[{data:c},{data:m},{data:cs},{data:a}]=await Promise.all([db.from('combates').select('*').or(`atleta_a.eq.${id},atleta_b.eq.${id}`).order('ronda'),db.from('inscricoes').select('competicao_id,medalha').eq('atleta_id',id),db.from('competicoes').select('id,nome,data,tipo'),db.from('atletas_v').select('id,nome')]);
+const C=Object.fromEntries(cs.map(x=>[x.id,x])),N=Object.fromEntries(a.map(x=>[x.id,x.nome]));
+$('#hs').innerHTML='<h4>Competições e medalhas</h4>'+tb(m.map(x=>({Competição:C[x.competicao_id]?.nome,Data:C[x.competicao_id]?.data,Tipo:C[x.competicao_id]?.tipo,Medalha:x.medalha||'—'})).sort((p,q)=>(q.Data||'').localeCompare(p.Data||'')),['Competição','Data','Tipo','Medalha'])+'<h4>Combates</h4>'+tb(c.map(x=>{const A=x.atleta_a==id;return{Competição:C[x.competicao_id]?.nome,Ronda:x.ronda,Adversário:N[A?x.atleta_b:x.atleta_a],Pontos:`${A?x.pontos_a:x.pontos_b} - ${A?x.pontos_b:x.pontos_a}`,Resultado:x.vencedor?(x.vencedor==id?'Vitória':'Derrota'):'—'}}),['Competição','Ronda','Adversário','Pontos','Resultado'])}
+init();
+</script></body></html>
